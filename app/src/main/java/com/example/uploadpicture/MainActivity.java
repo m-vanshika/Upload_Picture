@@ -1,20 +1,34 @@
 package com.example.uploadpicture;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.gridlayout.widget.GridLayout;
+
+import android.content.ContentResolver;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Display;
 import android.view.View;
+import android.webkit.MimeTypeMap;
 import android.widget.Button;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.StorageTask;
+import com.google.firebase.storage.UploadTask;
 
 import java.util.ArrayList;
 
@@ -23,12 +37,18 @@ public class MainActivity extends AppCompatActivity {
     private Uri imageuri;
     GridLayout gv;
     ConstraintLayout constraintLayout;
-
+    private FirebaseStorage storage;
+   private StorageReference storageRef ;
+   private DatabaseReference databaseReference;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        storage=FirebaseStorage.getInstance();
+        storageRef=storage.getReference();
          button=(Button)findViewById(R.id.button);
+         storageRef=FirebaseStorage.getInstance().getReference("uploads");
+         databaseReference= FirebaseDatabase.getInstance().getReference("uploads");
          constraintLayout=(ConstraintLayout)findViewById(R.id.Constraint);
          gv=(GridLayout) findViewById(R.id.grid);
          button.setOnClickListener(new View.OnClickListener() {
@@ -58,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
             gv.setColumnCount(3);
             gv.addView(pp);
 
+            uploadPic();
         }
     }
 
@@ -67,5 +88,37 @@ public class MainActivity extends AppCompatActivity {
         intent.setType("image/*");
         intent.setAction(Intent.ACTION_GET_CONTENT);
         startActivityForResult(intent,1);
+
+    }
+private  String getFileExtension(Uri uri)
+{
+    ContentResolver cR=getContentResolver();
+    MimeTypeMap mime=MimeTypeMap.getSingleton();
+    return mime.getExtensionFromMimeType(cR.getType(uri));
+}
+    private void uploadPic() {
+        if(imageuri!=null)
+        {
+            StorageReference fileReference =storageRef.child((System.currentTimeMillis()+"."+getFileExtension((imageuri))));
+    fileReference.putFile(imageuri).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+        @Override
+        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+            Toast.makeText(MainActivity.this,"Uploaded",Toast.LENGTH_LONG).show();
+            Upload upload=new Upload(imageuri.toString());
+            String uploadid=databaseReference.push().getKey();
+            databaseReference.child(uploadid).setValue(upload);
+        }
+    }).addOnFailureListener(new OnFailureListener() {
+        @Override
+        public void onFailure(@NonNull Exception e) {
+            Toast.makeText(MainActivity.this,e.getMessage(),Toast.LENGTH_LONG).show();
+        }
+    });
+        }
+        else
+        {
+            Toast.makeText(this,"No file selected",Toast.LENGTH_LONG).show();
+        }
+
     }
 }
