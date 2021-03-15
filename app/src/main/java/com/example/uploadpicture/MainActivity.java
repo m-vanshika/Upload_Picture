@@ -9,6 +9,10 @@ import androidx.gridlayout.widget.GridLayout;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.net.Uri;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.annotation.GlideModule;
+import com.bumptech.glide.module.AppGlideModule;
 import android.os.Bundle;
 import android.view.Display;
 import android.view.View;
@@ -23,14 +27,18 @@ import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.StorageTask;
 import com.google.firebase.storage.UploadTask;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     Button button;
@@ -39,7 +47,9 @@ public class MainActivity extends AppCompatActivity {
     ConstraintLayout constraintLayout;
     private FirebaseStorage storage;
    private StorageReference storageRef ;
-   private DatabaseReference databaseReference;
+
+   private List<Upload> mUploads;
+   private DatabaseReference databaseReference,mDatabaseRef;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,7 +61,38 @@ public class MainActivity extends AppCompatActivity {
          databaseReference= FirebaseDatabase.getInstance().getReference("uploads");
          constraintLayout=(ConstraintLayout)findViewById(R.id.Constraint);
          gv=(GridLayout) findViewById(R.id.grid);
-         button.setOnClickListener(new View.OnClickListener() {
+        mUploads =new ArrayList<>();
+        mDatabaseRef=FirebaseDatabase.getInstance().getReference("uploads");
+        gv.removeAllViews();
+        mDatabaseRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                for (DataSnapshot postSnapshot:snapshot.getChildren()){
+                    Upload upload=postSnapshot.getValue(Upload.class);
+                    //  mUploads.add(upload);
+                    String mimageuri= (upload.getMimageurl());
+                    ImageView pp=new ImageView(MainActivity.this);
+                    Glide.with(MainActivity.this).load(mimageuri).into(pp);
+                    // pp.setImageURI(mimageuri);
+                    pp.setPadding(1,1,1,1);
+                    Display display = getWindowManager().getDefaultDisplay();
+                    int width = ((display.getWidth()*33)/100);
+                    int height =((display.getHeight()*20)/100);
+
+                    LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(width, height);
+                    pp.setLayoutParams(layoutParams);
+                    gv.setColumnCount(3);
+                    gv.addView(pp);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(MainActivity.this,error.getMessage(),Toast.LENGTH_LONG).show();
+            }
+        });
+
+        button.setOnClickListener(new View.OnClickListener() {
              @Override
              public void onClick(View v) {
                  choosePic();
@@ -65,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
         if(requestCode==1&&resultCode==RESULT_OK&&data!=null&&data.getData()!=null)
         {
             imageuri=data.getData();
-            ImageView pp=new ImageView(MainActivity.this);
+           /* ImageView pp=new ImageView(MainActivity.this);
 
             pp.setImageURI(imageuri);
             pp.setPadding(1,1,1,1);
@@ -76,9 +117,10 @@ public class MainActivity extends AppCompatActivity {
             LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(width, height);
             pp.setLayoutParams(layoutParams);
             gv.setColumnCount(3);
-            gv.addView(pp);
+            gv.addView(pp);*/
 
             uploadPic();
+            gv.removeAllViews();
         }
     }
 
@@ -119,6 +161,11 @@ private  String getFileExtension(Uri uri)
         {
             Toast.makeText(this,"No file selected",Toast.LENGTH_LONG).show();
         }
+
+    }
+    protected void onStart() {
+
+        super.onStart();
 
     }
 }
